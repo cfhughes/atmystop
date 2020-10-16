@@ -1,0 +1,5 @@
+rootProject.name = 'atmystop'
+include 'appserver'
+include 'common'
+include 'abq_data'
+

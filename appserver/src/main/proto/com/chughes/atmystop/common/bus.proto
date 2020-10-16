@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package com.chughes.atmystop.appserver.model;
+
+message BusTime {
+  string trip_id = 1;
+  int32 seconds_late = 2;
+  string scheduled_time = 3;
+}
+
+message Stop {
+  repeated BusTime busses = 1;
+}
