@@ -4,12 +4,19 @@ import com.chughes.atmystop.appserver.model.Bus;
 import com.chughes.atmystop.appserver.model.RealtimeTripInfo;
 import com.chughes.atmystop.common.model.Agency;
 import com.chughes.atmystop.common.model.AgencyTripId;
+import com.chughes.atmystop.common.model.BusStopData;
 import com.chughes.atmystop.common.model.BusUpdateData;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
+import com.chughes.atmystop.common.model.repository.BusStopDataRepository;
 import com.chughes.atmystop.common.model.repository.BusUpdateDataRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
+import com.chughes.atmystop.common.service.BusStopsService;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.Metrics;
+import org.springframework.data.geo.Point;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -25,12 +32,14 @@ public class StopController {
     private BusUpdateDataRepository busUpdateDataRepository;
     private AgencyRepository agencyRepository;
     private StopTimeDataRepository stopTimeDataRepository;
+    private BusStopsService busStopsService;
     private StopTimeService stopTimeService;
 
-    public StopController(BusUpdateDataRepository busUpdateDataRepository, AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, StopTimeService stopTimeService) {
+    public StopController(BusUpdateDataRepository busUpdateDataRepository, AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusStopDataRepository busStopDataRepository, BusStopsService busStopsService, StopTimeService stopTimeService) {
         this.busUpdateDataRepository = busUpdateDataRepository;
         this.agencyRepository = agencyRepository;
         this.stopTimeDataRepository = stopTimeDataRepository;
+        this.busStopsService = busStopsService;
         this.stopTimeService = stopTimeService;
     }
 
@@ -43,10 +52,15 @@ public class StopController {
 //        return trips;
 //    }
 
+    @GetMapping("/stops")
+    public List<BusStopData> getStops(@RequestParam double lat,@RequestParam double lon){
+        return busStopsService.nearestStops(new Point(lon, lat));
+    }
+
     @GetMapping("/agency/{agencyId}/stops/{stopId}")
     public List<RealtimeTripInfo> getTrips(@PathVariable String agencyId, @PathVariable String stopId){
         Optional<Agency> currentServiceIds = agencyRepository.findById(agencyId);
-        if (currentServiceIds.isEmpty()){
+        if (!currentServiceIds.isPresent()){
             throw new IllegalArgumentException("No Such Agency");
         }
 
@@ -55,6 +69,7 @@ public class StopController {
                     //System.out.println(stopTimeData.toString());
                     RealtimeTripInfo realtimeTripInfo = new RealtimeTripInfo();
                     Optional<BusUpdateData> busUpdateData = busUpdateDataRepository.findById(new AgencyTripId(agencyId,stopTimeData.getTripId()).hashCode());
+                    //Only include recent enough updates
                     if (busUpdateData.isPresent() && Duration.between(busUpdateData.get().getUpdateTime(),LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId())).getSeconds() < 1800) {
                         realtimeTripInfo.setSecondsLate(busUpdateData.get().getSecondsLate());
                     }
@@ -62,8 +77,9 @@ public class StopController {
                     realtimeTripInfo.setTripId(stopTimeData.getTripId());
                     realtimeTripInfo.setService(stopTimeData.getServiceId());
                     realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
-                    Duration duration = Duration.between(LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId()), stopTimeData.getArrivalTime());
-                    if (duration.getSeconds() < 3600 && duration.getSeconds() > -1800){
+                    Duration arrivesIn = Duration.between(LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId()), stopTimeData.getArrivalTime());
+                    arrivesIn = arrivesIn.plusSeconds(realtimeTripInfo.getSecondsLate());
+                    if (arrivesIn.getSeconds() < 3600 && arrivesIn.getSeconds() > -2 * 60){
                         return Stream.of(realtimeTripInfo);
                     }
                     return Stream.empty();

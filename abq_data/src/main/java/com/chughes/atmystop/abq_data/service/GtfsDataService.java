@@ -2,9 +2,12 @@ package com.chughes.atmystop.abq_data.service;
 
 
 import com.chughes.atmystop.common.model.Agency;
+import com.chughes.atmystop.common.model.BusStopData;
 import com.chughes.atmystop.common.model.StopTimeData;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
+import com.chughes.atmystop.common.model.repository.BusStopDataRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
+import com.chughes.atmystop.common.service.BusStopsService;
 import org.onebusaway.gtfs.impl.GtfsDaoImpl;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.ServiceCalendar;
@@ -12,8 +15,7 @@ import org.onebusaway.gtfs.model.ServiceCalendarDate;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.gtfs.serialization.GtfsReader;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +26,6 @@ import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,12 +38,16 @@ public class GtfsDataService {
 
     AgencyRepository agencyRepository;
     StopTimeDataRepository stopTimeDataRepository;
+    BusStopDataRepository busStopDataRepository;
+    private BusStopsService busStopsService;
     RedisTemplate<String, Object> redisTemplate;
 
-    public GtfsDataService(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, RedisTemplate<String, Object> redisTemplate) {
+    public GtfsDataService(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, RedisTemplate<String, Object> redisTemplate, BusStopDataRepository busStopDataRepository, BusStopsService busStopsService) {
         this.agencyRepository = agencyRepository;
         this.stopTimeDataRepository = stopTimeDataRepository;
         this.redisTemplate = redisTemplate;
+        this.busStopDataRepository = busStopDataRepository;
+        this.busStopsService = busStopsService;
     }
 
     private static final String AGENCY_UNIQUE = "abqride";
@@ -89,6 +94,17 @@ public class GtfsDataService {
             latestTime = allTimes.stream().max(Comparator.comparing(StopTimeData::getArrivalTime)).get().getArrivalTime();
 
             agencyId = store.getAllAgencies().stream().findFirst().get().getId() + "_" + AGENCY_UNIQUE;
+
+            List<BusStopData> allStops = store.getAllStops().stream().map((stop -> {
+                BusStopData busStopData = new BusStopData();
+                busStopData.setAgency(agencyId);
+                busStopData.setId(stop.getId().getId());
+                busStopData.setTitle(stop.getName());
+                busStopData.setLocation(new Point(stop.getLon(),stop.getLat()));
+                return busStopData;
+            })).collect(Collectors.toList());
+
+            busStopsService.addAllStops(allStops);
 
             redisTemplate.executePipelined(
                     (RedisCallback<Object>) connection -> {
