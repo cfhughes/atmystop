@@ -5,8 +5,10 @@ import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.index.GeoIndexed;
 
 import java.io.Serializable;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-@RedisHash("BusStopData")
 public class BusStopData implements Serializable {
 
     private String id;
@@ -15,8 +17,9 @@ public class BusStopData implements Serializable {
 
     private String title;
 
-    @GeoIndexed
     Point location;
+
+    Set<TripHeadSign> trips;
 
     public String getId() {
         return id;
@@ -48,5 +51,13 @@ public class BusStopData implements Serializable {
 
     public void setLocation(Point location) {
         this.location = location;
+    }
+
+    public Set<TripHeadSign> getTrips() {
+        return trips;
+    }
+
+    public void setTrips(Set<TripHeadSign> trips) {
+        this.trips = trips;
     }
 }

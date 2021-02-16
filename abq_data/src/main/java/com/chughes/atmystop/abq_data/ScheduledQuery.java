@@ -4,7 +4,7 @@ import com.chughes.atmystop.abq_data.model.Vehicle;
 import com.chughes.atmystop.abq_data.service.GtfsDataService;
 import com.chughes.atmystop.abq_data.service.TempDataService;
 import com.chughes.atmystop.common.model.AgencyTripId;
-import com.chughes.atmystop.common.model.repository.BusUpdateDataRepository;
+import com.chughes.atmystop.common.service.BusUpdateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,16 +29,15 @@ public class ScheduledQuery {
     private HTTPGetter httpGetter;
     private TempDataService tempDataService;
     private GtfsDataService gtfsDataService;
-    private BusUpdateDataRepository busUpdateDataRepository;
+    private BusUpdateService busUpdateService;
 
     public ScheduledQuery(HTTPGetter httpGetter,
                           TempDataService tempDataService,
-                          GtfsDataService gtfsDataService,
-                          BusUpdateDataRepository busUpdateDataRepository){
+                          GtfsDataService gtfsDataService, BusUpdateService busUpdateService){
         this.httpGetter = httpGetter;
         this.tempDataService = tempDataService;
         this.gtfsDataService = gtfsDataService;
-        this.busUpdateDataRepository = busUpdateDataRepository;
+        this.busUpdateService = busUpdateService;
     }
 
     @Scheduled(fixedRate = 15 * 1000)
@@ -73,7 +72,7 @@ public class ScheduledQuery {
             if (updateDataPrevious != null) {
                 //If next stop id is different, accept time update
                 if (!updateDataPrevious.getNextStop().equals(vehicle.getNextStopId())) {
-                    busUpdateDataRepository.save(updateDataCurrent);
+                    busUpdateService.saveBusUpdate(updateDataCurrent);
                     if (vehicle.getTripId().equals("471203")) {
                         log.info("Updated");
                     }
@@ -84,7 +83,7 @@ public class ScheduledQuery {
 
                 //If already later to next stop, use current lateness
                 if (d.getSeconds() > updateDataPrevious.getSecondsLate()) {
-                    busUpdateDataRepository.save(updateDataCurrent);
+                    busUpdateService.saveBusUpdate(updateDataCurrent);
                 }
             }
 

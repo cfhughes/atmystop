@@ -1,23 +1,26 @@
 package com.chughes.atmystop.appserver;
 
 import com.chughes.atmystop.common.model.StopTimeData;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
+import com.chughes.atmystop.common.service.SerializationService;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.SerializationUtils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 public class StopTimeService {
 
     private RedisTemplate<String, Object> redisTemplate;
+    private SerializationService<StopTimeData> stopTimeDataSerializationService;
 
-    public StopTimeService(RedisTemplate<String, Object> redisTemplate) {
+    public StopTimeService(RedisTemplate<String, Object> redisTemplate, SerializationService<StopTimeData> stopTimeDataSerializationService) {
         this.redisTemplate = redisTemplate;
+        this.stopTimeDataSerializationService = stopTimeDataSerializationService;
     }
 
     public Collection<StopTimeData> getAllByStopIdAndAgency(String stopId, String agencyId, List<String> serviceIds) {
@@ -29,8 +32,7 @@ public class StopTimeService {
             }
             return tripIds.stream().map(tripId -> {
                 //System.out.println(tripId);
-                StopTimeData stopTimeData = (StopTimeData) SerializationUtils.deserialize(connection.get((agencyId + ":" + new String(tripId) + ":" + stopId).getBytes()));
-                return stopTimeData;
+                return stopTimeDataSerializationService.deserialize(connection.get((agencyId + ":" + new String(tripId) + ":" + stopId).getBytes()), StopTimeData.class);
             }).filter((Objects::nonNull)).collect(Collectors.toList());
         });
     }

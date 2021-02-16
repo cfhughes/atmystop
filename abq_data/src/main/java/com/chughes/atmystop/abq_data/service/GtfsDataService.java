@@ -4,23 +4,21 @@ package com.chughes.atmystop.abq_data.service;
 import com.chughes.atmystop.common.model.Agency;
 import com.chughes.atmystop.common.model.BusStopData;
 import com.chughes.atmystop.common.model.StopTimeData;
+import com.chughes.atmystop.common.model.TripHeadSign;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
-import com.chughes.atmystop.common.model.repository.BusStopDataRepository;
-import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
+import com.chughes.atmystop.common.service.SerializationService;
 import org.onebusaway.gtfs.impl.GtfsDaoImpl;
-import org.onebusaway.gtfs.model.AgencyAndId;
-import org.onebusaway.gtfs.model.ServiceCalendar;
-import org.onebusaway.gtfs.model.ServiceCalendarDate;
-import org.onebusaway.gtfs.model.StopTime;
+import org.onebusaway.gtfs.model.*;
 import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.gtfs.serialization.GtfsReader;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.util.SerializationUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -36,18 +34,16 @@ import static java.util.stream.Collectors.maxBy;
 @Service
 public class GtfsDataService {
 
-    AgencyRepository agencyRepository;
-    StopTimeDataRepository stopTimeDataRepository;
-    BusStopDataRepository busStopDataRepository;
+    private AgencyRepository agencyRepository;
     private BusStopsService busStopsService;
-    RedisTemplate<String, Object> redisTemplate;
+    private SerializationService<StopTimeData> stopTimeDataSerializationService;
+    private RedisTemplate<String, Object> redisTemplate;
 
-    public GtfsDataService(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, RedisTemplate<String, Object> redisTemplate, BusStopDataRepository busStopDataRepository, BusStopsService busStopsService) {
+    public GtfsDataService(AgencyRepository agencyRepository, RedisTemplate<String, Object> redisTemplate, BusStopsService busStopsService, SerializationService<StopTimeData> stopTimeDataSerializationService) {
         this.agencyRepository = agencyRepository;
-        this.stopTimeDataRepository = stopTimeDataRepository;
         this.redisTemplate = redisTemplate;
-        this.busStopDataRepository = busStopDataRepository;
         this.busStopsService = busStopsService;
+        this.stopTimeDataSerializationService = stopTimeDataSerializationService;
     }
 
     private static final String AGENCY_UNIQUE = "abqride";
@@ -66,12 +62,24 @@ public class GtfsDataService {
 
     @PostConstruct
     public void init() {
+
+        //TODO: Don't remove everything
+        redisTemplate.execute((RedisCallback<Object>) connection -> {
+            //This deletes everything
+            connection.flushAll();
+            return null;
+        });
+
         GtfsReader reader = new GtfsReader();
         try {
             reader.setInputLocation(new File("abq_data/src/main/resources/google_transit.zip"));
             store = new GtfsDaoImpl();
             reader.setEntityStore(store);
             reader.run();
+
+            String agencyGtfsId = store.getAllAgencies().stream().findFirst().get().getId();
+
+            HashMap<String, Set<String>> tripsByStop = new HashMap<>();
 
             List<StopTimeData> allTimes = store.getAllStopTimes().stream().map((stopTime) -> {
                 StopTimeData stopTimeData = new StopTimeData();
@@ -80,20 +88,29 @@ public class GtfsDataService {
                 stopTimeData.setStopId(stopTime.getStop().getId().getId());
                 stopTimeData.setArrivalTime(LocalTime.ofSecondOfDay(stopTime.getArrivalTime() % 86400));
                 stopTimeData.setServiceId(stopTime.getTrip().getServiceId().getId());
+                if (!tripsByStop.containsKey(stopTime.getStop().getId().getId())){
+                    tripsByStop.put(stopTime.getStop().getId().getId(),new HashSet<>());
+                }
+                tripsByStop.get(stopTime.getStop().getId().getId()).add(stopTime.getTrip().getId().getId());
                 return stopTimeData;
             }).collect(Collectors.toList());
 
+            HashMap<String, String> lastStopByTrip = new HashMap<>();
+
             allTimes.stream().collect(groupingBy(StopTimeData::getTripId,
                     maxBy(Comparator.comparing(StopTimeData::getArrivalTime))))
-                    .forEach(((s, stopTimeData) -> {
-                        stopTimeData.ifPresent(timeData -> timeData.setLastStop(true));
-                    }));
+                    .forEach((s, stopTimeData) -> {
+                        stopTimeData.ifPresent(timeData -> {
+                            timeData.setLastStop(true);
+                            lastStopByTrip.put(timeData.getTripId(),store.getStopForId(new AgencyAndId(agencyGtfsId,timeData.getStopId())).getName());
+                        });
+                    });
 
             earliestTime = allTimes.stream().min(Comparator.comparing(StopTimeData::getArrivalTime)).get().getArrivalTime();
 
             latestTime = allTimes.stream().max(Comparator.comparing(StopTimeData::getArrivalTime)).get().getArrivalTime();
 
-            agencyId = store.getAllAgencies().stream().findFirst().get().getId() + "_" + AGENCY_UNIQUE;
+            agencyId = agencyGtfsId + "_" + AGENCY_UNIQUE;
 
             List<BusStopData> allStops = store.getAllStops().stream().map((stop -> {
                 BusStopData busStopData = new BusStopData();
@@ -101,6 +118,13 @@ public class GtfsDataService {
                 busStopData.setId(stop.getId().getId());
                 busStopData.setTitle(stop.getName());
                 busStopData.setLocation(new Point(stop.getLon(),stop.getLat()));
+                HashSet<TripHeadSign> headSigns = new HashSet<>();
+                for (String tripId:tripsByStop.get(busStopData.getId())){
+                    String name = lastStopByTrip.get(tripId);
+                    Route route = store.getTripForId(new AgencyAndId(agencyGtfsId, tripId)).getRoute();
+                    headSigns.add(new TripHeadSign(name, route.getShortName(), route.getColor(), route.getTextColor()));
+                }
+                busStopData.setTrips(headSigns);
                 return busStopData;
             })).collect(Collectors.toList());
 
@@ -109,7 +133,7 @@ public class GtfsDataService {
             redisTemplate.executePipelined(
                     (RedisCallback<Object>) connection -> {
                         allTimes.forEach((stopTimeData -> {
-                            connection.set((agencyId+":"+stopTimeData.getTripId()+":"+stopTimeData.getStopId()).getBytes(), SerializationUtils.serialize(stopTimeData));
+                            connection.set((agencyId+":"+stopTimeData.getTripId()+":"+stopTimeData.getStopId()).getBytes(), stopTimeDataSerializationService.serialize(stopTimeData, StopTimeData.class));
                             connection.sAdd(stopTimeData.getServiceId().getBytes(),stopTimeData.getTripId().getBytes());
                             connection.sAdd(stopTimeData.getStopId().getBytes(),stopTimeData.getTripId().getBytes());
                         }));

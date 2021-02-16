@@ -28,21 +28,19 @@ public class BusStopsService {
     }
 
     public void addAllStops(List<BusStopData> stops){
-        redisTemplate.executePipelined(new RedisCallback<Object>() {
-            @Override
-            public Object doInRedis(RedisConnection connection) throws DataAccessException {
-                stops.forEach(busStopData -> {
-                    connection.geoCommands().geoAdd(REDIS_KEY_STOPS, busStopData.getLocation(), SerializationUtils.serialize(busStopData));
-                });
-                return null;
-            }
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            connection.del(REDIS_KEY_STOPS);
+            stops.forEach(busStopData -> {
+                connection.geoCommands().geoAdd(REDIS_KEY_STOPS, busStopData.getLocation(), SerializationUtils.serialize(busStopData));
+            });
+            return null;
         });
     }
 
     public List<BusStopData> nearestStops(Point point){
         return redisTemplate.execute((RedisCallback<List<BusStopData>>) connection -> {
             RedisGeoCommands.GeoRadiusCommandArgs args = RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs()
-                    .sortAscending().limit(30);
+                    .sortAscending().limit(10);
             return connection.geoRadius(REDIS_KEY_STOPS,new Circle(point, new Distance(0.5, Metrics.MILES)),args)
                     .getContent().stream().map((geoLocationGeoResult -> {
                         return (BusStopData) SerializationUtils.deserialize(geoLocationGeoResult.getContent().getName());

@@ -11,8 +11,7 @@ import com.chughes.atmystop.common.model.repository.BusStopDataRepository;
 import com.chughes.atmystop.common.model.repository.BusUpdateDataRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
-import org.springframework.data.geo.Distance;
-import org.springframework.data.geo.Metrics;
+import com.chughes.atmystop.common.service.BusUpdateService;
 import org.springframework.data.geo.Point;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,14 +28,14 @@ import java.util.stream.Stream;
 @RestController
 public class StopController {
 
-    private BusUpdateDataRepository busUpdateDataRepository;
+    private BusUpdateService busUpdateService;
     private AgencyRepository agencyRepository;
     private StopTimeDataRepository stopTimeDataRepository;
     private BusStopsService busStopsService;
     private StopTimeService stopTimeService;
 
-    public StopController(BusUpdateDataRepository busUpdateDataRepository, AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusStopDataRepository busStopDataRepository, BusStopsService busStopsService, StopTimeService stopTimeService) {
-        this.busUpdateDataRepository = busUpdateDataRepository;
+    public StopController(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusUpdateService busUpdateService, BusStopsService busStopsService, StopTimeService stopTimeService) {
+        this.busUpdateService = busUpdateService;
         this.agencyRepository = agencyRepository;
         this.stopTimeDataRepository = stopTimeDataRepository;
         this.busStopsService = busStopsService;
@@ -68,10 +67,10 @@ public class StopController {
                 .flatMap((stopTimeData -> {
                     //System.out.println(stopTimeData.toString());
                     RealtimeTripInfo realtimeTripInfo = new RealtimeTripInfo();
-                    Optional<BusUpdateData> busUpdateData = busUpdateDataRepository.findById(new AgencyTripId(agencyId,stopTimeData.getTripId()).hashCode());
+                    BusUpdateData busUpdateData = busUpdateService.findById(new AgencyTripId(agencyId,stopTimeData.getTripId()).hashCode());
                     //Only include recent enough updates
-                    if (busUpdateData.isPresent() && Duration.between(busUpdateData.get().getUpdateTime(),LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId())).getSeconds() < 1800) {
-                        realtimeTripInfo.setSecondsLate(busUpdateData.get().getSecondsLate());
+                    if (busUpdateData!= null && Duration.between(busUpdateData.getUpdateTime(),LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId())).getSeconds() < 1800) {
+                        realtimeTripInfo.setSecondsLate(busUpdateData.getSecondsLate());
                     }
                     realtimeTripInfo.setScheduledTime(stopTimeData.getArrivalTime());
                     realtimeTripInfo.setTripId(stopTimeData.getTripId());
