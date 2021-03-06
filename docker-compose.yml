@@ -1,0 +1,6 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  data_redis:
+    image: redis
+    ports:
+      - "6379:6379"

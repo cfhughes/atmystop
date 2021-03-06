@@ -40,8 +40,8 @@ public class BusStopsService {
     public List<BusStopData> nearestStops(Point point){
         return redisTemplate.execute((RedisCallback<List<BusStopData>>) connection -> {
             RedisGeoCommands.GeoRadiusCommandArgs args = RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs()
-                    .sortAscending().limit(10);
-            return connection.geoRadius(REDIS_KEY_STOPS,new Circle(point, new Distance(0.5, Metrics.MILES)),args)
+                    .sortAscending().limit(100);
+            return connection.geoRadius(REDIS_KEY_STOPS,new Circle(point, new Distance(1000, Metrics.MILES)),args)
                     .getContent().stream().map((geoLocationGeoResult -> {
                         return (BusStopData) SerializationUtils.deserialize(geoLocationGeoResult.getContent().getName());
                     })).collect(Collectors.toList());

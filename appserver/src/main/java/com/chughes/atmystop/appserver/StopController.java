@@ -7,8 +7,6 @@ import com.chughes.atmystop.common.model.AgencyTripId;
 import com.chughes.atmystop.common.model.BusStopData;
 import com.chughes.atmystop.common.model.BusUpdateData;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
-import com.chughes.atmystop.common.model.repository.BusStopDataRepository;
-import com.chughes.atmystop.common.model.repository.BusUpdateDataRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
 import com.chughes.atmystop.common.service.BusUpdateService;
@@ -65,6 +63,9 @@ public class StopController {
 
         return stopTimeService.getAllByStopIdAndAgency(stopId,agencyId,currentServiceIds.get().getServiceIds()).stream()
                 .flatMap((stopTimeData -> {
+                    if (stopTimeData.isLastStop()) {
+                        return null;
+                    }
                     //System.out.println(stopTimeData.toString());
                     RealtimeTripInfo realtimeTripInfo = new RealtimeTripInfo();
                     BusUpdateData busUpdateData = busUpdateService.findById(new AgencyTripId(agencyId,stopTimeData.getTripId()).hashCode());
@@ -75,6 +76,7 @@ public class StopController {
                     realtimeTripInfo.setScheduledTime(stopTimeData.getArrivalTime());
                     realtimeTripInfo.setTripId(stopTimeData.getTripId());
                     realtimeTripInfo.setService(stopTimeData.getServiceId());
+                    realtimeTripInfo.setRoute(stopTimeData.getRouteShortName());
                     realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
                     Duration arrivesIn = Duration.between(LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId()), stopTimeData.getArrivalTime());
                     arrivesIn = arrivesIn.plusSeconds(realtimeTripInfo.getSecondsLate());

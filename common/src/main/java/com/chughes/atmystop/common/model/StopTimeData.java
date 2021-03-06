@@ -13,9 +13,10 @@ public class StopTimeData implements Serializable {
     @Id
     private String stopId;
     private LocalTime arrivalTime;
-    @Indexed private String routeId;
+    @Indexed private String routeShortName;
     private String tripId;
     private String serviceId;
+    private int stopSequence;
     private boolean lastStop;
 
     public LocalTime getArrivalTime() {
@@ -26,12 +27,12 @@ public class StopTimeData implements Serializable {
         this.arrivalTime = arrivalTime;
     }
 
-    public String getRouteId() {
-        return routeId;
+    public String getRouteShortName() {
+        return routeShortName;
     }
 
-    public void setRouteId(String routeId) {
-        this.routeId = routeId;
+    public void setRouteShortName(String routeShortName) {
+        this.routeShortName = routeShortName;
     }
 
     public String getStopId() {
@@ -71,5 +72,13 @@ public class StopTimeData implements Serializable {
         return "StopTimeData{" +
                 "stopId='" + stopId + '\'' +
                 '}';
+    }
+
+    public int getStopSequence() {
+        return stopSequence;
+    }
+
+    public void setStopSequence(int stopSequence) {
+        this.stopSequence = stopSequence;
     }
 }

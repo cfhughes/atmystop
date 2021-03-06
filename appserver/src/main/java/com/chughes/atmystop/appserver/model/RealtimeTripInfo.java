@@ -14,6 +14,8 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
 
     private String service;
 
+    private String route;
+
     public long getSecondsLate() {
         return secondsLate;
     }
@@ -57,5 +59,13 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
 
     public void setService(String service) {
         this.service = service;
+    }
+
+    public String getRoute() {
+        return route;
+    }
+
+    public void setRoute(String route) {
+        this.route = route;
     }
 }

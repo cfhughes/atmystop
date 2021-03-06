@@ -12,9 +12,7 @@ import org.onebusaway.gtfs.impl.GtfsDaoImpl;
 import org.onebusaway.gtfs.model.*;
 import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.gtfs.serialization.GtfsReader;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.geo.Point;
-import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -84,9 +82,10 @@ public class GtfsDataService {
             List<StopTimeData> allTimes = store.getAllStopTimes().stream().map((stopTime) -> {
                 StopTimeData stopTimeData = new StopTimeData();
                 stopTimeData.setTripId(stopTime.getTrip().getId().getId());
-                stopTimeData.setRouteId(stopTime.getTrip().getRoute().getId().getId());
+                stopTimeData.setRouteShortName(stopTime.getTrip().getRoute().getShortName());
                 stopTimeData.setStopId(stopTime.getStop().getId().getId());
                 stopTimeData.setArrivalTime(LocalTime.ofSecondOfDay(stopTime.getArrivalTime() % 86400));
+                stopTimeData.setStopSequence(stopTime.getStopSequence());
                 stopTimeData.setServiceId(stopTime.getTrip().getServiceId().getId());
                 if (!tripsByStop.containsKey(stopTime.getStop().getId().getId())){
                     tripsByStop.put(stopTime.getStop().getId().getId(),new HashSet<>());
@@ -98,7 +97,7 @@ public class GtfsDataService {
             HashMap<String, String> lastStopByTrip = new HashMap<>();
 
             allTimes.stream().collect(groupingBy(StopTimeData::getTripId,
-                    maxBy(Comparator.comparing(StopTimeData::getArrivalTime))))
+                    maxBy(Comparator.comparing(StopTimeData::getStopSequence))))
                     .forEach((s, stopTimeData) -> {
                         stopTimeData.ifPresent(timeData -> {
                             timeData.setLastStop(true);
