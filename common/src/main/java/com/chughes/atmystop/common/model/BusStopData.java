@@ -1,17 +1,15 @@
 package com.chughes.atmystop.common.model;
 
 import org.springframework.data.geo.Point;
-import org.springframework.data.redis.core.RedisHash;
-import org.springframework.data.redis.core.index.GeoIndexed;
 
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class BusStopData implements Serializable {
 
     private String id;
+
+    private String code;
 
     private String agency;
 
@@ -59,5 +57,13 @@ public class BusStopData implements Serializable {
 
     public void setTrips(Set<TripHeadSign> trips) {
         this.trips = trips;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 }

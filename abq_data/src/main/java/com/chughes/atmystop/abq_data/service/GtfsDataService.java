@@ -83,6 +83,8 @@ public class GtfsDataService {
                 StopTimeData stopTimeData = new StopTimeData();
                 stopTimeData.setTripId(stopTime.getTrip().getId().getId());
                 stopTimeData.setRouteShortName(stopTime.getTrip().getRoute().getShortName());
+                stopTimeData.setColor(stopTime.getTrip().getRoute().getColor());
+                stopTimeData.setTextColor(stopTime.getTrip().getRoute().getTextColor());
                 stopTimeData.setStopId(stopTime.getStop().getId().getId());
                 stopTimeData.setArrivalTime(LocalTime.ofSecondOfDay(stopTime.getArrivalTime() % 86400));
                 stopTimeData.setStopSequence(stopTime.getStopSequence());
@@ -115,6 +117,7 @@ public class GtfsDataService {
                 BusStopData busStopData = new BusStopData();
                 busStopData.setAgency(agencyId);
                 busStopData.setId(stop.getId().getId());
+                busStopData.setCode(stop.getCode());
                 busStopData.setTitle(stop.getName());
                 busStopData.setLocation(new Point(stop.getLon(),stop.getLat()));
                 HashSet<TripHeadSign> headSigns = new HashSet<>();
@@ -126,6 +129,8 @@ public class GtfsDataService {
                 busStopData.setTrips(headSigns);
                 return busStopData;
             })).collect(Collectors.toList());
+
+            busStopsService.defineStopNameIndex();
 
             busStopsService.addAllStops(allStops);
 

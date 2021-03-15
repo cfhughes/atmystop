@@ -1,5 +1,6 @@
 package com.chughes.atmystop.appserver;
 
+import io.redisearch.client.Client;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +26,11 @@ public class AppServerApplication {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(jedisConnectionFactory());
         return template;
+    }
+
+    @Bean
+    public Client redisearchClient() {
+        return new Client("atmystop", "localhost", 6379);
     }
 
     @Bean

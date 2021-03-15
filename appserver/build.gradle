@@ -53,6 +53,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
     implementation 'redis.clients:jedis:3.3.0'
+    implementation 'com.redislabs:jredisearch:2.0.0'
 
     implementation 'com.google.protobuf:protobuf-java:3.12.4'
 

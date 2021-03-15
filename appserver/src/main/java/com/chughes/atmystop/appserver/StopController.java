@@ -54,6 +54,16 @@ public class StopController {
         return busStopsService.nearestStops(new Point(lon, lat));
     }
 
+    @GetMapping("/route/{routeId}/stops")
+    public List<BusStopData> getStopsByRoute(@PathVariable String routeId) {
+        return busStopsService.stopsByRoute(routeId);
+    }
+
+    @GetMapping("/stops/search")
+    public List<BusStopData> searchStops(@RequestParam(required = false) String name, @RequestParam(required = false) String route, @RequestParam(required = false) String id) {
+        return busStopsService.stopsBySearch(name, route, id);
+    }
+
     @GetMapping("/agency/{agencyId}/stops/{stopId}")
     public List<RealtimeTripInfo> getTrips(@PathVariable String agencyId, @PathVariable String stopId){
         Optional<Agency> currentServiceIds = agencyRepository.findById(agencyId);
@@ -78,6 +88,8 @@ public class StopController {
                     realtimeTripInfo.setService(stopTimeData.getServiceId());
                     realtimeTripInfo.setRoute(stopTimeData.getRouteShortName());
                     realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
+                    realtimeTripInfo.setColor(stopTimeData.getColor());
+                    realtimeTripInfo.setTextColor(stopTimeData.getTextColor());
                     Duration arrivesIn = Duration.between(LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId()), stopTimeData.getArrivalTime());
                     arrivesIn = arrivesIn.plusSeconds(realtimeTripInfo.getSecondsLate());
                     if (arrivesIn.getSeconds() < 3600 && arrivesIn.getSeconds() > -2 * 60){

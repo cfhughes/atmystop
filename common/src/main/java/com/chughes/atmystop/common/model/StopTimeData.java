@@ -18,6 +18,8 @@ public class StopTimeData implements Serializable {
     private String serviceId;
     private int stopSequence;
     private boolean lastStop;
+    private String color;
+    private String textColor;
 
     public LocalTime getArrivalTime() {
         return arrivalTime;
@@ -80,5 +82,21 @@ public class StopTimeData implements Serializable {
 
     public void setStopSequence(int stopSequence) {
         this.stopSequence = stopSequence;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    public void setTextColor(String textColor) {
+        this.textColor = textColor;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public String getTextColor() {
+        return textColor;
     }
 }

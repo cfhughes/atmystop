@@ -1,6 +1,7 @@
 package com.chughes.atmystop.abq_data;
 
 import com.chughes.atmystop.common.model.repository.BusUpdateDataRepository;
+import io.redisearch.client.Client;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,11 @@ public class AbqDataApplication {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(jedisConnectionFactory());
         return template;
+    }
+
+    @Bean
+    public Client redisearchClient() {
+        return new Client("atmystop", "localhost", 6379);
     }
 
     public static void main(String[] args) {
