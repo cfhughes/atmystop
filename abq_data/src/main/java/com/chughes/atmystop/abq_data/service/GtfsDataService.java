@@ -86,7 +86,7 @@ public class GtfsDataService {
                 stopTimeData.setColor(stopTime.getTrip().getRoute().getColor());
                 stopTimeData.setTextColor(stopTime.getTrip().getRoute().getTextColor());
                 stopTimeData.setStopId(stopTime.getStop().getId().getId());
-                stopTimeData.setArrivalTime(LocalTime.ofSecondOfDay(stopTime.getArrivalTime() % 86400));
+                stopTimeData.setArrivalTime(LocalTime.ofSecondOfDay(Math.floorMod(stopTime.getArrivalTime() - TimeZone.getTimeZone("America/Denver").getOffset(new Date().getTime()) / 1000, 86400)));
                 stopTimeData.setStopSequence(stopTime.getStopSequence());
                 stopTimeData.setServiceId(stopTime.getTrip().getServiceId().getId());
                 if (!tripsByStop.containsKey(stopTime.getStop().getId().getId())){

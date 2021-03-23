@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,8 +91,10 @@ public class StopController {
                     realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
                     realtimeTripInfo.setColor(stopTimeData.getColor());
                     realtimeTripInfo.setTextColor(stopTimeData.getTextColor());
-                    Duration arrivesIn = Duration.between(LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId()), stopTimeData.getArrivalTime());
+                    Duration arrivesIn = Duration.between(LocalTime.now(TimeZone.getTimeZone("UTC").toZoneId()), stopTimeData.getArrivalTime());
                     arrivesIn = arrivesIn.plusSeconds(realtimeTripInfo.getSecondsLate());
+                    arrivesIn = Duration.ofSeconds(Math.floorMod(arrivesIn.getSeconds(), 60 * 60 * 24));
+                    //System.out.println(String.format("%s : %s : %d",stopTimeData.getTripId(),stopTimeData.getArrivalTime(),arrivesIn.getSeconds()));
                     if (arrivesIn.getSeconds() < 3600 && arrivesIn.getSeconds() > -2 * 60){
                         return Stream.of(realtimeTripInfo);
                     }

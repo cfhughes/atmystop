@@ -53,7 +53,7 @@ public class ScheduledQuery {
             //Stop s = gtfsDataService.getStore().getStopForId(new AgencyAndId("1",vehicle.getNextStopId()));
 
             Duration d = Duration.between(vehicle.getNextStopSchedTime(),vehicle.getMsgTime());
-            if (vehicle.getTripId().equals("471203")) {
+            if (vehicle.getTripId().equals("486898")) {
                 log.info("Between {} and {} is {}", vehicle.getNextStopSchedTime(), vehicle.getMsgTime(), d.getSeconds());
             }
             //TODO Is this really necessary? Fixes past midnight trips
@@ -66,14 +66,16 @@ public class ScheduledQuery {
             //log.info("Trip "+vehicle.getTripId() + " Duration "+d);
 
             AgencyTripId agencyTripId = new AgencyTripId(gtfsDataService.getAgencyId(),vehicle.getTripId());
+            BusUpdateData updateDataStored = busUpdateService.findById(agencyTripId.hashCode());
             BusUpdateData updateDataCurrent = new BusUpdateData(agencyTripId.hashCode(), vehicle.getMsgTime(), d.getSeconds(), vehicle.getNextStopId());
             BusUpdateData updateDataPrevious = tempDataService.getSecondsLateTemp(vehicle.getTripId());
 
             if (updateDataPrevious != null) {
                 //If next stop id is different, accept time update
+
                 if (!updateDataPrevious.getNextStop().equals(vehicle.getNextStopId())) {
-                    busUpdateService.saveBusUpdate(updateDataCurrent);
-                    if (vehicle.getTripId().equals("471203")) {
+                    busUpdateService.saveBusUpdate(updateDataPrevious);
+                    if (vehicle.getTripId().equals("486898")) {
                         log.info("Updated");
                     }
                     if (d.getSeconds() > 5 * 60){
@@ -82,7 +84,8 @@ public class ScheduledQuery {
                 }
 
                 //If already later to next stop, use current lateness
-                if (d.getSeconds() > updateDataPrevious.getSecondsLate()) {
+                if (updateDataStored != null && d.getSeconds() > updateDataStored.getSecondsLate()) {
+                    log.info(String.format("Already later:%s",d.getSeconds()));
                     busUpdateService.saveBusUpdate(updateDataCurrent);
                 }
             }

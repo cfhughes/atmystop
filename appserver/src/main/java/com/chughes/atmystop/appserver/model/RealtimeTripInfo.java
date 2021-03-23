@@ -54,7 +54,7 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
 
     @Override
     public int compareTo(RealtimeTripInfo o) {
-        return scheduledTime.compareTo(o.getScheduledTime());
+        return scheduledTime.plusSeconds(getSecondsLate()).compareTo(o.getScheduledTime().plusSeconds(o.getSecondsLate()));
     }
 
     public String getService() {
