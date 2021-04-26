@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static java.util.Calendar.*;
@@ -67,10 +68,11 @@ public class GtfsDataService {
             connection.flushAll();
             return null;
         });
+        busStopsService.defineStopNameIndex();
 
         GtfsReader reader = new GtfsReader();
         try {
-            reader.setInputLocation(new File("abq_data/src/main/resources/google_transit.zip"));
+            reader.setInputLocation(new File("./google_transit.zip"));
             store = new GtfsDaoImpl();
             reader.setEntityStore(store);
             reader.run();
@@ -130,8 +132,6 @@ public class GtfsDataService {
                 return busStopData;
             })).collect(Collectors.toList());
 
-            busStopsService.defineStopNameIndex();
-
             busStopsService.addAllStops(allStops);
 
             redisTemplate.executePipelined(
@@ -141,6 +141,7 @@ public class GtfsDataService {
                             connection.sAdd(stopTimeData.getServiceId().getBytes(),stopTimeData.getTripId().getBytes());
                             connection.sAdd(stopTimeData.getStopId().getBytes(),stopTimeData.getTripId().getBytes());
                         }));
+                        lastStopByTrip.forEach((key, value) -> connection.set(("tripInfo:"+agencyId+":"+key).getBytes(),value.getBytes()));
                         return null;
                     }
             );

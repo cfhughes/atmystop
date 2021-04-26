@@ -85,7 +85,7 @@ public class ScheduledQuery {
 
                 //If already later to next stop, use current lateness
                 if (updateDataStored != null && d.getSeconds() > updateDataStored.getSecondsLate()) {
-                    log.info(String.format("Already later:%s",d.getSeconds()));
+                    //log.info(String.format("Already later:%s",d.getSeconds()));
                     busUpdateService.saveBusUpdate(updateDataCurrent);
                 }
             }

@@ -20,6 +20,8 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
 
     private String textColor;
 
+    private String headsign;
+
     public long getSecondsLate() {
         return secondsLate;
     }
@@ -87,5 +89,13 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
 
     public void setTextColor(String textColor) {
         this.textColor = textColor;
+    }
+
+    public String getHeadsign() {
+        return headsign;
+    }
+
+    public void setHeadsign(String headsign) {
+        this.headsign = headsign;
     }
 }

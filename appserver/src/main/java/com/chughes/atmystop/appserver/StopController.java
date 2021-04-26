@@ -10,6 +10,7 @@ import com.chughes.atmystop.common.model.repository.AgencyRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
 import com.chughes.atmystop.common.service.BusUpdateService;
+import com.chughes.atmystop.common.service.TripsService;
 import org.springframework.data.geo.Point;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,13 +33,15 @@ public class StopController {
     private StopTimeDataRepository stopTimeDataRepository;
     private BusStopsService busStopsService;
     private StopTimeService stopTimeService;
+    private TripsService tripsService;
 
-    public StopController(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusUpdateService busUpdateService, BusStopsService busStopsService, StopTimeService stopTimeService) {
+    public StopController(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusUpdateService busUpdateService, BusStopsService busStopsService, StopTimeService stopTimeService, TripsService tripsService) {
         this.busUpdateService = busUpdateService;
         this.agencyRepository = agencyRepository;
         this.stopTimeDataRepository = stopTimeDataRepository;
         this.busStopsService = busStopsService;
         this.stopTimeService = stopTimeService;
+        this.tripsService = tripsService;
     }
 
 //    @GetMapping("/trips")
@@ -84,18 +87,19 @@ public class StopController {
                     if (busUpdateData!= null && Duration.between(busUpdateData.getUpdateTime(),LocalTime.now(currentServiceIds.get().getTimeZone().toZoneId())).getSeconds() < 1800) {
                         realtimeTripInfo.setSecondsLate(busUpdateData.getSecondsLate());
                     }
-                    realtimeTripInfo.setScheduledTime(stopTimeData.getArrivalTime());
-                    realtimeTripInfo.setTripId(stopTimeData.getTripId());
-                    realtimeTripInfo.setService(stopTimeData.getServiceId());
-                    realtimeTripInfo.setRoute(stopTimeData.getRouteShortName());
-                    realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
-                    realtimeTripInfo.setColor(stopTimeData.getColor());
-                    realtimeTripInfo.setTextColor(stopTimeData.getTextColor());
                     Duration arrivesIn = Duration.between(LocalTime.now(TimeZone.getTimeZone("UTC").toZoneId()), stopTimeData.getArrivalTime());
                     arrivesIn = arrivesIn.plusSeconds(realtimeTripInfo.getSecondsLate());
                     arrivesIn = Duration.ofSeconds(Math.floorMod(arrivesIn.getSeconds(), 60 * 60 * 24));
                     //System.out.println(String.format("%s : %s : %d",stopTimeData.getTripId(),stopTimeData.getArrivalTime(),arrivesIn.getSeconds()));
                     if (arrivesIn.getSeconds() < 3600 && arrivesIn.getSeconds() > -2 * 60){
+                        realtimeTripInfo.setScheduledTime(stopTimeData.getArrivalTime());
+                        realtimeTripInfo.setTripId(stopTimeData.getTripId());
+                        realtimeTripInfo.setService(stopTimeData.getServiceId());
+                        realtimeTripInfo.setRoute(stopTimeData.getRouteShortName());
+                        realtimeTripInfo.setDisplayTime(stopTimeData.getArrivalTime().toString());
+                        realtimeTripInfo.setColor(stopTimeData.getColor());
+                        realtimeTripInfo.setTextColor(stopTimeData.getTextColor());
+                        realtimeTripInfo.setHeadsign(tripsService.getHeadsignByTrip(agencyId, stopTimeData.getTripId()));
                         return Stream.of(realtimeTripInfo);
                     }
                     return Stream.empty();
