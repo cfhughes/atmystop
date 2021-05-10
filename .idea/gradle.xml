@@ -13,6 +13,7 @@
             <option value="$PROJECT_DIR$/abq_data" />
             <option value="$PROJECT_DIR$/appserver" />
             <option value="$PROJECT_DIR$/common" />
+            <option value="$PROJECT_DIR$/gtfsrt_data" />
           </set>
         </option>
       </GradleProjectSettings>

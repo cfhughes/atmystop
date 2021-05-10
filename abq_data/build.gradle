@@ -26,7 +26,8 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    compile("com.squareup.retrofit2:converter-gson:2.4.0")
+    compile("com.squareup.retrofit2:converter-jackson:2.9.0")
+    compile("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     implementation 'redis.clients:jedis:3.3.0'
     implementation 'com.redislabs:jredisearch:2.0.0'

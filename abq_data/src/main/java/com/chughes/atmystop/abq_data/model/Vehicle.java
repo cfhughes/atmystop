@@ -1,43 +1,40 @@
 package com.chughes.atmystop.abq_data.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 import java.time.LocalTime;
 
 public class Vehicle {
 
-    @SerializedName("vehicle_id")
-    @Expose
+    @JsonProperty("vehicle_id")
     private String vehicleId;
-    @SerializedName("msg_time")
-    @Expose
+
+    @JsonProperty("msg_time")
     private LocalTime msgTime;
-    @SerializedName("latitude")
-    @Expose
+
     private Double latitude;
-    @SerializedName("longitude")
-    @Expose
+
     private Double longitude;
-    @SerializedName("heading")
-    @Expose
+
     private Integer heading;
-    @SerializedName("speed_mph")
-    @Expose
+
+    @JsonProperty("speed_mph")
     private Integer speedMph;
-    @SerializedName("route_short_name")
-    @Expose
+
+    @JsonProperty("route_short_name")
     private String routeShortName;
-    @SerializedName("trip_id")
-    @Expose
+
+    @JsonProperty("trip_id")
     private String tripId;
-    @SerializedName("next_stop_id")
-    @Expose
+
+    @JsonProperty("next_stop_id")
     private String nextStopId;
-    @SerializedName("next_stop_name")
-    @Expose
+
+    @JsonProperty("next_stop_name")
     private String nextStopName;
-    @SerializedName("next_stop_sched_time")
-    @Expose
+
+    @JsonProperty("next_stop_sched_time")
     private LocalTime nextStopSchedTime;
 
     public String getVehicleId() {
