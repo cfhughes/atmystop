@@ -10,6 +10,7 @@ import com.chughes.atmystop.common.model.repository.AgencyRepository;
 import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
 import com.chughes.atmystop.common.service.BusUpdateService;
+import com.chughes.atmystop.common.service.StopTimeService;
 import com.chughes.atmystop.common.service.TripsService;
 import org.springframework.data.geo.Point;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -75,7 +76,11 @@ public class StopController {
             throw new IllegalArgumentException("No Such Agency");
         }
 
-        return stopTimeService.getAllByStopIdAndAgency(stopId,agencyId,currentServiceIds.get().getServiceIds()).stream()
+        List<String> serviceIds = currentServiceIds.get().getServiceIds();
+//        if (currentServiceIds.get().getYesterdayServiceIds() != null) {
+//            serviceIds.addAll(currentServiceIds.get().getYesterdayServiceIds());
+//        }
+        return stopTimeService.getAllByStopIdAndAgency(stopId,agencyId, serviceIds).stream()
                 .flatMap((stopTimeData -> {
                     if (stopTimeData.isLastStop()) {
                         return null;

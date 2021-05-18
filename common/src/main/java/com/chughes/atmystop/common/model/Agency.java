@@ -14,6 +14,8 @@ public class Agency {
 
     private List<String> serviceIds;
 
+    private List<String> yesterdayServiceIds;
+
     public List<String> getServiceIds() {
         return serviceIds;
     }
@@ -36,5 +38,13 @@ public class Agency {
 
     public void setTimeZone(TimeZone timeZone) {
         this.timeZone = timeZone;
+    }
+
+    public List<String> getYesterdayServiceIds() {
+        return yesterdayServiceIds;
+    }
+
+    public void setYesterdayServiceIds(List<String> yesterdayServiceIds) {
+        this.yesterdayServiceIds = yesterdayServiceIds;
     }
 }

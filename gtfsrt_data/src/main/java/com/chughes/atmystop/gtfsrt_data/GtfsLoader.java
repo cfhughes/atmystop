@@ -1,58 +1,51 @@
-package com.chughes.atmystop.abq_data.service;
-
+package com.chughes.atmystop.gtfsrt_data;
 
 import com.chughes.atmystop.common.gtfsloading.GtfsProcessorProvider;
 import com.chughes.atmystop.common.model.Agency;
-import com.chughes.atmystop.common.model.StopTimeData;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
-import com.chughes.atmystop.common.service.SerializationService;
 import org.onebusaway.gtfs.impl.GtfsDaoImpl;
-import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.ServiceCalendar;
 import org.onebusaway.gtfs.model.ServiceCalendarDate;
-import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.calendar.ServiceDate;
-import org.onebusaway.gtfs.serialization.GtfsReader;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import org.onebusaway.gtfs.serialization.GtfsReader;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
 
 import static java.util.Calendar.*;
 
 @Service
-public class GtfsDataService {
+public class GtfsLoader {
 
     private AgencyRepository agencyRepository;
-    private BusStopsService busStopsService;
-    private SerializationService<StopTimeData> stopTimeDataSerializationService;
     private RedisTemplate<String, Object> redisTemplate;
+    private BusStopsService busStopsService;
     private GtfsProcessorProvider gtfsProcessorProvider;
 
-    public GtfsDataService(AgencyRepository agencyRepository, RedisTemplate<String, Object> redisTemplate, BusStopsService busStopsService, SerializationService<StopTimeData> stopTimeDataSerializationService, GtfsProcessorProvider gtfsProcessorProvider) {
+    private GtfsDaoImpl store;
+    private String agencyId = null;
+
+    private static final String AGENCY_UNIQUE = "actransit";
+
+    public static final int HOURS_AFTER_MIDNIGHT = 5;
+    private TimeZone timeZone;
+
+    public GtfsLoader(AgencyRepository agencyRepository, RedisTemplate<String, Object> redisTemplate, BusStopsService busStopsService, GtfsProcessorProvider gtfsProcessorProvider) {
         this.agencyRepository = agencyRepository;
         this.redisTemplate = redisTemplate;
         this.busStopsService = busStopsService;
-        this.stopTimeDataSerializationService = stopTimeDataSerializationService;
         this.gtfsProcessorProvider = gtfsProcessorProvider;
     }
-
-    private static final String AGENCY_UNIQUE = "abqride";
-
-    public static final int HOURS_AFTER_MIDNIGHT = 3;
-    private GtfsDaoImpl store;
-
-    //private Map<AgencyAndId, List<StopTime>> timesByStop;
-
-    private Map<AgencyAndId, StopTime> lastStopByTrip;
-
-    private String agencyId = null;
 
     @PostConstruct
     public void init() {
@@ -67,14 +60,14 @@ public class GtfsDataService {
 
         GtfsReader reader = new GtfsReader();
         try {
-            reader.setInputLocation(new File("/Users/chughes/code/atmystop/abq_data/src/main/resources/google_transit.zip"));
+            reader.setInputLocation(new File("/Users/chughes/code/atmystop/gtfs_atmystop.zip"));
             store = new GtfsDaoImpl();
             reader.setEntityStore(store);
             reader.run();
 
             String agencyGtfsId = store.getAllAgencies().stream().findFirst().get().getId();
 
-            TimeZone timeZone = TimeZone.getTimeZone("America/Denver");
+            timeZone = TimeZone.getTimeZone(store.getAllAgencies().stream().findFirst().get().getTimezone());
 
             agencyId = agencyGtfsId + "_" + AGENCY_UNIQUE;
 
@@ -89,15 +82,12 @@ public class GtfsDataService {
 
     }
 
-    public GtfsDaoImpl getStore() {
-        return store;
-    }
-
     public void populateServiceIds(){
         Agency agency = new Agency();
         agency.setId(agencyId);
-        agency.setTimeZone(TimeZone.getTimeZone("America/Denver"));
+        agency.setTimeZone(timeZone);
         agency.setServiceIds(getCurrentServiceIds());
+        agency.setYesterdayServiceIds(getYesterdayServiceIds());
         agencyRepository.save(agency);
     }
 
@@ -148,63 +138,63 @@ public class GtfsDataService {
         return service;
     }
 
-    public boolean isLastStop(StopTime stopTime){
-        if (lastStopByTrip == null) {
-            lastStopByTrip = new HashMap<>();
-            for (StopTime stopT : store.getAllStopTimes()) {
-                if (!getCurrentServiceIds().contains(stopT.getTrip().getServiceId().getId())){
-                    //No service today
-                    continue;
-                }
-                StopTime currentLastStop = lastStopByTrip.get(stopT.getTrip().getId());
-                if (currentLastStop == null || currentLastStop.getStopSequence() < stopT.getStopSequence()) {
-                    lastStopByTrip.put(stopT.getTrip().getId(), stopT);
+    private ArrayList<String> getYesterdayServiceIds(){
+        ArrayList<String> service = new ArrayList<>();
+        ServiceDate serviceDate = getServiceDate().previous();
+        for (ServiceCalendar calendar:store.getAllCalendars()){
+            if (calendar.getStartDate().compareTo(serviceDate) > 0){
+                continue;
+            }
+            if (calendar.getEndDate().compareTo(serviceDate) < 0){
+                continue;
+            }
+            switch (getDayOfWeek()){
+                case SUNDAY:
+                    if (calendar.getSunday() == 0) continue;
+                    break;
+                case MONDAY:
+                    if (calendar.getMonday() == 0) continue;
+                    break;
+                case TUESDAY:
+                    if (calendar.getTuesday() == 0) continue;
+                    break;
+                case WEDNESDAY:
+                    if (calendar.getWednesday() == 0) continue;
+                    break;
+                case THURSDAY:
+                    if (calendar.getThursday() == 0) continue;
+                    break;
+                case FRIDAY:
+                    if (calendar.getFriday() == 0) continue;
+                    break;
+                case SATURDAY:
+                    if (calendar.getSaturday() == 0) continue;
+                    break;
+            }
+            service.add(calendar.getServiceId().getId());
+        }
+        for (ServiceCalendarDate serviceCalendarDate:store.getAllCalendarDates()){
+            if (serviceCalendarDate.getDate().equals(serviceDate)){
+                if (serviceCalendarDate.getExceptionType() == 1) {
+                    service.add(serviceCalendarDate.getServiceId().getId());
+                }else if (serviceCalendarDate.getExceptionType() == 2){
+                    service.remove(serviceCalendarDate.getServiceId().getId());
                 }
             }
         }
-        return stopTime.getId().equals(lastStopByTrip.get(stopTime.getTrip().getId()).getId());
-
+        return service;
     }
-
-/*    //TODO Make sure this works for all cases
-    public boolean isServiceActive(LocalTime time){
-        LocalTime latestUpdateTime = latestTime.plusMinutes(60);
-        if (seconds > earliestTime && seconds < latestUpdateTime){
-            return true;
-        }
-        if (latestUpdateTime > 24 * 60 * 60 && seconds < latestUpdateTime % 24 * 60 * 60){
-            return true;
-        }
-        return false;
-    }*/
 
     private int getDayOfWeek(){
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
         int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
-        //Before 3am, it's still yesterday
-        if (calendar.get(Calendar.HOUR_OF_DAY) < HOURS_AFTER_MIDNIGHT){
-            dayOfWeek--;
-        }
         return dayOfWeek;
     }
 
     private ServiceDate getServiceDate(){
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
-        calendar.add(Calendar.HOUR,-HOURS_AFTER_MIDNIGHT);
         return new ServiceDate(calendar);
     }
-
-    //Invalidate serviceIds at 3:05am
-    @Scheduled(cron="0 "+HOURS_AFTER_MIDNIGHT+" 5 * * ?")
-    private void invalidateServiceIds(){
-        agencyRepository.deleteById(agencyId);
-        populateServiceIds();
-    }
-
-    public String getAgencyId() {
-        return agencyId;
-    }
 }
-

@@ -1,4 +1,4 @@
-package com.chughes.atmystop.appserver;
+package com.chughes.atmystop.common.service;
 
 import com.chughes.atmystop.common.model.StopTimeData;
 import com.chughes.atmystop.common.service.SerializationService;
@@ -35,5 +35,10 @@ public class StopTimeService {
                 return stopTimeDataSerializationService.deserialize(connection.get((agencyId + ":" + new String(tripId) + ":" + stopId).getBytes()), StopTimeData.class);
             }).filter((Objects::nonNull)).collect(Collectors.toList());
         });
+    }
+
+    public StopTimeData getByStopIdAgencyTripId(String stopId, String agencyId, String tripId) {
+        return redisTemplate.execute((RedisCallback<StopTimeData>) connection ->
+                stopTimeDataSerializationService.deserialize(connection.get((agencyId + ":" + tripId + ":" + stopId).getBytes()), StopTimeData.class));
     }
 }
