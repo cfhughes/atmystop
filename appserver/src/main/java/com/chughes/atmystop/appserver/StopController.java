@@ -7,11 +7,12 @@ import com.chughes.atmystop.common.model.AgencyTripId;
 import com.chughes.atmystop.common.model.BusStopData;
 import com.chughes.atmystop.common.model.BusUpdateData;
 import com.chughes.atmystop.common.model.repository.AgencyRepository;
-import com.chughes.atmystop.common.model.repository.StopTimeDataRepository;
 import com.chughes.atmystop.common.service.BusStopsService;
 import com.chughes.atmystop.common.service.BusUpdateService;
 import com.chughes.atmystop.common.service.StopTimeService;
 import com.chughes.atmystop.common.service.TripsService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.geo.Point;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,17 +30,17 @@ import java.util.stream.Stream;
 @RestController
 public class StopController {
 
+    private static final Logger log = LoggerFactory.getLogger(StopController.class);
+
     private BusUpdateService busUpdateService;
     private AgencyRepository agencyRepository;
-    private StopTimeDataRepository stopTimeDataRepository;
     private BusStopsService busStopsService;
     private StopTimeService stopTimeService;
     private TripsService tripsService;
 
-    public StopController(AgencyRepository agencyRepository, StopTimeDataRepository stopTimeDataRepository, BusUpdateService busUpdateService, BusStopsService busStopsService, StopTimeService stopTimeService, TripsService tripsService) {
+    public StopController(AgencyRepository agencyRepository, BusUpdateService busUpdateService, BusStopsService busStopsService, StopTimeService stopTimeService, TripsService tripsService) {
         this.busUpdateService = busUpdateService;
         this.agencyRepository = agencyRepository;
-        this.stopTimeDataRepository = stopTimeDataRepository;
         this.busStopsService = busStopsService;
         this.stopTimeService = stopTimeService;
         this.tripsService = tripsService;
@@ -105,6 +106,7 @@ public class StopController {
                         realtimeTripInfo.setColor(stopTimeData.getColor());
                         realtimeTripInfo.setTextColor(stopTimeData.getTextColor());
                         realtimeTripInfo.setHeadsign(tripsService.getHeadsignByTrip(agencyId, stopTimeData.getTripId()));
+                        //log.info(realtimeTripInfo.toString());
                         return Stream.of(realtimeTripInfo);
                     }
                     return Stream.empty();

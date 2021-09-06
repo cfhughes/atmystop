@@ -10,11 +10,13 @@ import org.springframework.data.geo.Circle;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.Metrics;
 import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.SerializationUtils;
+import redis.clients.jedis.exceptions.JedisDataException;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,19 +35,27 @@ public class BusStopsService {
     }
 
     public void addAllStops(List<BusStopData> stops){
+        clearExistingData(stops);
         redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            connection.del(REDIS_KEY_STOPS);
+            //connection.del(REDIS_KEY_STOPS);
             stops.forEach(busStopData -> {
                 byte[] key = String.format("stopObj:%s:%s",busStopData.getAgency(),busStopData.getId()).getBytes();
+                //Put stop itself
                 connection.set(key, SerializationUtils.serialize(busStopData));
+                connection.sAdd(busStopData.getAgency().getBytes(), key);
+                // Add geo index
                 connection.geoCommands().geoAdd(REDIS_KEY_STOPS, busStopData.getLocation(), key);
-                busStopData.getTrips().forEach(tripHeadSign -> connection.sAdd(("route:"+tripHeadSign.getRoute()).getBytes(),key));
+                // Add a mapping for each trip
+                busStopData.getTrips().forEach(tripHeadSign -> {
+                    connection.sAdd(("route:" + tripHeadSign.getRoute()).getBytes(), key);
+                });
+                // Add a mapping for id
                 connection.sAdd(("stopId:"+busStopData.getId()).getBytes(),key);
-
+                // Add a mapping for secondary id
                 if (!busStopData.getCode().equals(busStopData.getId())) {
                     connection.sAdd(("stopId:"+busStopData.getCode()).getBytes(),key);
                 }
-
+                // Add for text search
                 Map<byte[], byte[]> fields = new HashMap<>();
                 fields.put("name".getBytes(), busStopData.getTitle().getBytes());
                 fields.put("key".getBytes(), key);
@@ -56,10 +66,33 @@ public class BusStopsService {
         });
     }
 
+    private void clearExistingData(List<BusStopData> stops) {
+        stops.stream().findFirst().ifPresent((busStopDataFirst -> {
+            Set<byte[]> members = redisTemplate.execute(((RedisCallback<Set<byte[]>>) connection -> connection.sMembers(busStopDataFirst.getAgency().getBytes())));
+            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                if (members != null) {
+                    members.forEach((key -> {
+                        BusStopData busStopDataExpired = redisTemplate.execute(((RedisCallback<BusStopData>) connectionS -> (BusStopData) SerializationUtils.deserialize(connectionS.get(key))));
+                        connection.geoCommands().geoRemove(REDIS_KEY_STOPS, key);
+                        busStopDataExpired.getTrips().forEach(tripHeadSign -> {
+                            connection.sRem(("route:" + tripHeadSign.getRoute()).getBytes(), key);
+                        });
+                        connection.sRem(("stopId:" + busStopDataExpired.getId()).getBytes(), key);
+                        connection.sRem(("stopId:" + busStopDataExpired.getCode()).getBytes(), key);
+                        connection.unlink(String.format("stop:%s:%s", busStopDataExpired.getAgency(), busStopDataExpired.getId()).getBytes());
+                        connection.unlink(key);
+                    }));
+                }
+                connection.unlink(busStopDataFirst.getAgency().getBytes());
+                return null;
+            });
+        }));
+    }
+
     public List<BusStopData> nearestStops(Point point){
         return redisTemplate.execute((RedisCallback<List<BusStopData>>) connection -> {
             RedisGeoCommands.GeoRadiusCommandArgs args = RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs()
-                    .sortAscending().limit(2);
+                    .sortAscending().limit(200);
             return connection.geoRadius(REDIS_KEY_STOPS,new Circle(point, new Distance(1000, Metrics.MILES)),args)
                     .getContent().stream().map((geoLocationGeoResult -> {
                         return (BusStopData) SerializationUtils.deserialize(connection.get(geoLocationGeoResult.getContent().getName()));
@@ -137,7 +170,13 @@ public class BusStopsService {
         IndexDefinition def = new IndexDefinition()
                 .setPrefixes(new String[] {"stop:"});
 
-        redisearchClient.createIndex(sc, Client.IndexOptions.defaultOptions().setDefinition(def));
+        try {
+            redisearchClient.getInfo();
+        } catch (JedisDataException e) {
+            System.out.println("Creating Index: "+e.getLocalizedMessage());
+            redisearchClient.createIndex(sc, Client.IndexOptions.defaultOptions().setDefinition(def));
+        }
+
     }
 
 }

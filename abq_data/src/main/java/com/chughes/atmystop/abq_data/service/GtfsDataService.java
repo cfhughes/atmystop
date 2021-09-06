@@ -22,13 +22,20 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Calendar.*;
 
 @Service
 public class GtfsDataService {
 
+    public static final String GTFS_GOOGLE_TRANSIT_ZIP = "http://data.cabq.gov/transit/gtfs/google_transit.zip";
+    public static final String TMP_FILE = "/tmp/google_transit.zip";
     private AgencyRepository agencyRepository;
     private BusStopsService busStopsService;
     private SerializationService<StopTimeData> stopTimeDataSerializationService;
@@ -58,16 +65,23 @@ public class GtfsDataService {
     public void init() {
 
         //TODO: Don't remove everything
-        redisTemplate.execute((RedisCallback<Object>) connection -> {
-            //This deletes everything
-            connection.flushAll();
-            return null;
-        });
+//        redisTemplate.execute((RedisCallback<Object>) connection -> {
+//            //This deletes everything
+//            connection.flushAll();
+//            return null;
+//        });
         busStopsService.defineStopNameIndex();
 
         GtfsReader reader = new GtfsReader();
         try {
-            reader.setInputLocation(new File("/Users/chughes/code/atmystop/abq_data/src/main/resources/google_transit.zip"));
+
+            URL url = new URL(GTFS_GOOGLE_TRANSIT_ZIP);
+
+            try (InputStream in = url.openStream()) {
+                Files.copy(in, Paths.get(TMP_FILE), REPLACE_EXISTING);
+            }
+
+            reader.setInputLocation(new File(TMP_FILE));
             store = new GtfsDaoImpl();
             reader.setEntityStore(store);
             reader.run();

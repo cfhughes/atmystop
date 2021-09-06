@@ -8,6 +8,7 @@ import com.chughes.atmystop.common.service.SerializationService;
 import org.onebusaway.gtfs.impl.GtfsDaoImpl;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
+import org.onebusaway.gtfs.model.Trip;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -102,12 +103,28 @@ public class GtfsProcessorProvider {
 
             redisTemplate.executePipelined(
                     (RedisCallback<Object>) connection -> {
+                        // Remove previous stuff
+                        Set<byte[]> members = redisTemplate.execute((RedisCallback<Set<byte[]>>) connectionS -> connectionS.sMembers((agencyId + ":timesSet").getBytes()));
+                        if (members.size() > 0) {
+                            connection.unlink(members.toArray(new byte[0][]));
+                            connection.unlink((agencyId + ":timesSet").getBytes());
+                        }
+                        // Recreate data
                         allTimes.forEach((stopTimeData -> {
+                            // Add stop time data
                             connection.set((agencyId+":"+stopTimeData.getTripId()+":"+stopTimeData.getStopId()).getBytes(), stopTimeDataSerializationService.serialize(stopTimeData, StopTimeData.class));
-                            connection.sAdd(stopTimeData.getServiceId().getBytes(),stopTimeData.getTripId().getBytes());
-                            connection.sAdd(stopTimeData.getStopId().getBytes(),stopTimeData.getTripId().getBytes());
+                            connection.sAdd((agencyId+":timesSet").getBytes(), (agencyId+":"+stopTimeData.getTripId()+":"+stopTimeData.getStopId()).getBytes());
+                            // Add map from service -> trip
+                            connection.sAdd((agencyId+":"+stopTimeData.getServiceId()).getBytes(),(agencyId+":"+stopTimeData.getTripId()).getBytes());
+                            connection.sAdd((agencyId+":timesSet").getBytes(), (agencyId+":"+stopTimeData.getServiceId()).getBytes());
+                            // Add map from stop id -> trip
+                            connection.sAdd((agencyId+":"+stopTimeData.getStopId()).getBytes(),(agencyId+":"+stopTimeData.getTripId()).getBytes());
+                            connection.sAdd((agencyId+":timesSet").getBytes(), (agencyId+":"+stopTimeData.getStopId()).getBytes());
                         }));
-                        lastStopByTrip.forEach((key, value) -> connection.set(("tripInfo:"+agencyId+":"+key).getBytes(),value.getBytes()));
+                        lastStopByTrip.forEach((key, value) -> {
+                            connection.set(("tripInfo:"+agencyId+":"+key).getBytes(),value.getBytes());
+                            connection.sAdd((agencyId+":timesSet").getBytes(),("tripInfo:"+agencyId+":"+key).getBytes());
+                        });
                         return null;
                     }
             );
@@ -124,8 +141,12 @@ public class GtfsProcessorProvider {
                 busStopData.setLocation(new Point(stop.getLon(),stop.getLat()));
                 HashSet<TripHeadSign> headSigns = new HashSet<>();
                 for (String tripId:tripsByStop.get(busStopData.getId())){
-                    String name = lastStopByTrip.get(tripId);
-                    Route route = store.getTripForId(new AgencyAndId(agencyGtfsId, tripId)).getRoute();
+                    Trip trip = store.getTripForId(new AgencyAndId(agencyGtfsId, tripId));
+                    Route route = trip.getRoute();
+                    String name = trip.getTripHeadsign();
+                    if (name == null || name.trim().length() == 0) {
+                        name = lastStopByTrip.get(tripId);
+                    }
                     headSigns.add(new TripHeadSign(name, route.getShortName(), route.getColor(), route.getTextColor()));
                 }
                 busStopData.setTrips(headSigns);
@@ -135,9 +156,5 @@ public class GtfsProcessorProvider {
             busStopsService.addAllStops(allStops);
         }
     }
-
-
-
-
 
 }

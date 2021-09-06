@@ -2,11 +2,14 @@ package com.chughes.atmystop.common.model;
 
 import org.springframework.data.redis.core.RedisHash;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.TimeZone;
 
 @RedisHash("Agency")
-public class Agency {
+public class Agency implements Serializable {
+
+    private static final long serialVersionUID = 20210905L;
 
     private String id;
 

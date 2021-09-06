@@ -10,6 +10,8 @@ import java.time.LocalTime;
 @RedisHash("StopTimeData")
 public class StopTimeData implements Serializable {
 
+    private static final long serialVersionUID = 20210905L;
+
     @Id
     private String stopId;
     private LocalTime arrivalTime;

@@ -25,14 +25,14 @@ public class StopTimeService {
 
     public Collection<StopTimeData> getAllByStopIdAndAgency(String stopId, String agencyId, List<String> serviceIds) {
         return redisTemplate.execute((RedisCallback<Collection<StopTimeData>>) connection -> {
-            byte[][] keyServiceIds = serviceIds.stream().map(String::getBytes).toArray(byte[][]::new);
-            HashSet<byte[]> tripIds = new HashSet<>();
+            byte[][] keyServiceIds = serviceIds.stream().map((id) -> agencyId+":"+id).map(String::getBytes).toArray(byte[][]::new);
+            HashSet<byte[]> agencyAndTripIds = new HashSet<>();
             for (byte[] keyServiceId : keyServiceIds) {
-                tripIds.addAll(connection.sInter(keyServiceId,stopId.getBytes()));
+                agencyAndTripIds.addAll(connection.sInter(keyServiceId,(agencyId+":"+stopId).getBytes()));
             }
-            return tripIds.stream().map(tripId -> {
+            return agencyAndTripIds.stream().map(agencyAndTripId -> {
                 //System.out.println(tripId);
-                return stopTimeDataSerializationService.deserialize(connection.get((agencyId + ":" + new String(tripId) + ":" + stopId).getBytes()), StopTimeData.class);
+                return stopTimeDataSerializationService.deserialize(connection.get((new String(agencyAndTripId) + ":" + stopId).getBytes()), StopTimeData.class);
             }).filter((Objects::nonNull)).collect(Collectors.toList());
         });
     }

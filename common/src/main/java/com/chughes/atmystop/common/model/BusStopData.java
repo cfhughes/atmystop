@@ -7,6 +7,8 @@ import java.util.Set;
 
 public class BusStopData implements Serializable {
 
+    private static final long serialVersionUID = 20210905L;
+
     private String id;
 
     private String code;

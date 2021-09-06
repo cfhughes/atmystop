@@ -17,16 +17,25 @@ import org.onebusaway.gtfs.serialization.GtfsReader;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Calendar.*;
 
 @Service
 public class GtfsLoader {
 
+    private static final String AGENCY_UNIQUE = "actransit";
+    private static final String TMP_FILE = "/tmp/gtfs_"+AGENCY_UNIQUE+".zip";
+    private static final String GTFS_GOOGLE_TRANSIT_ZIP = "https://api.actransit.org/transit/gtfs/download?token=67BAECDF34E1BDCA36BC44499FDDF6F9";
     private AgencyRepository agencyRepository;
     private RedisTemplate<String, Object> redisTemplate;
     private BusStopsService busStopsService;
@@ -35,7 +44,7 @@ public class GtfsLoader {
     private GtfsDaoImpl store;
     private String agencyId = null;
 
-    private static final String AGENCY_UNIQUE = "actransit";
+    
 
     public static final int HOURS_AFTER_MIDNIGHT = 5;
     private TimeZone timeZone;
@@ -49,18 +58,23 @@ public class GtfsLoader {
 
     @PostConstruct
     public void init() {
-
-        //TODO: Don't remove everything
-        redisTemplate.execute((RedisCallback<Object>) connection -> {
-            //This deletes everything
-            connection.flushAll();
-            return null;
-        });
+        
+//        redisTemplate.execute((RedisCallback<Object>) connection -> {
+//            //This deletes everything
+//            connection.flushAll();
+//            return null;
+//        });
         busStopsService.defineStopNameIndex();
 
         GtfsReader reader = new GtfsReader();
         try {
-            reader.setInputLocation(new File("/Users/chughes/code/atmystop/gtfs_atmystop.zip"));
+            URL url = new URL(GTFS_GOOGLE_TRANSIT_ZIP);
+
+            try (InputStream in = url.openStream()) {
+                Files.copy(in, Paths.get(TMP_FILE), REPLACE_EXISTING);
+            }
+
+            reader.setInputLocation(new File(TMP_FILE));
             store = new GtfsDaoImpl();
             reader.setEntityStore(store);
             reader.run();

@@ -8,6 +8,8 @@ import java.time.LocalTime;
 @RedisHash("BusUpdateData")
 public class BusUpdateData implements Serializable {
 
+    private static final long serialVersionUID = 20210905L;
+
     private int id;
 
     private LocalTime updateTime;

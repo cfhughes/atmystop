@@ -98,4 +98,15 @@ public class RealtimeTripInfo implements Comparable<RealtimeTripInfo> {
     public void setHeadsign(String headsign) {
         this.headsign = headsign;
     }
+
+    @Override
+    public String toString() {
+        return "RealtimeTripInfo{" +
+                "secondsLate=" + secondsLate +
+                ", scheduledTime=" + scheduledTime +
+                ", displayTime='" + displayTime + '\'' +
+                ", route='" + route + '\'' +
+                ", headsign='" + headsign + '\'' +
+                '}';
+    }
 }

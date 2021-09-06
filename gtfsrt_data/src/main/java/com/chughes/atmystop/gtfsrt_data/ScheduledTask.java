@@ -28,7 +28,7 @@ public class ScheduledTask {
 
     private static final String AGENCY_UNIQUE = "actransit";
 
-    @Scheduled(fixedRate = 30 * 1000)
+    @Scheduled(fixedRate = 2 * 60 * 1000)
     public void updateRealtime() {
         String agencyId = "1" + "_" + AGENCY_UNIQUE;
         try {
@@ -36,11 +36,11 @@ public class ScheduledTask {
             FeedMessage feed = FeedMessage.parseFrom(url.openStream());
             for (GtfsRealtime.FeedEntity entity : feed.getEntityList()) {
                 if (entity.hasTripUpdate()) {
-                    System.out.println("*****NEW*****");
+                    //System.out.println("*****NEW*****");
                     GtfsRealtime.TripUpdate tripUpdate = entity.getTripUpdate();
                     String tripId = tripUpdate.getTrip().getTripId();
-                    System.out.println(tripId);
-                    System.out.println(tripUpdate);
+                    //System.out.println(tripId);
+                    //System.out.println(tripUpdate);
 
                     if (tripUpdate.getStopTimeUpdateCount() > 0) {
                         GtfsRealtime.TripUpdate.StopTimeUpdate update = tripUpdate.getStopTimeUpdate(0);
@@ -54,7 +54,7 @@ public class ScheduledTask {
 
                         BusUpdateData busUpdateData = new BusUpdateData(new AgencyTripId(agencyId, tripId).hashCode(), updateTime, delay, null);
 
-                        System.out.println(delay);
+                        //System.out.println(delay);
 
                         busUpdateService.saveBusUpdate(busUpdateData);
                     }

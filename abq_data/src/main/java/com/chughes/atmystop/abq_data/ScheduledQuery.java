@@ -40,8 +40,8 @@ public class ScheduledQuery {
         this.busUpdateService = busUpdateService;
     }
 
-    @Scheduled(fixedRate = 15 * 1000)
-    public void reportCurrentTime() {
+    @Scheduled(fixedRate = 3 * 60 * 1000)
+    public void realtimeData() {
         int seconds = LocalTime.now(ZoneId.of("America/Denver")).toSecondOfDay();
 /*        if (!gtfsDataService.isServiceActive(seconds)){
             return;
@@ -53,9 +53,7 @@ public class ScheduledQuery {
             //Stop s = gtfsDataService.getStore().getStopForId(new AgencyAndId("1",vehicle.getNextStopId()));
 
             Duration d = Duration.between(vehicle.getNextStopSchedTime(),vehicle.getMsgTime());
-            if (vehicle.getTripId().equals("486898")) {
-                log.info("Between {} and {} is {}", vehicle.getNextStopSchedTime(), vehicle.getMsgTime(), d.getSeconds());
-            }
+
             //TODO Is this really necessary? Fixes past midnight trips
             if (d.compareTo(Duration.ofHours(20)) > 0){
                 d = d.minus(Duration.ofHours(24));
@@ -75,9 +73,6 @@ public class ScheduledQuery {
 
                 if (!updateDataPrevious.getNextStop().equals(vehicle.getNextStopId())) {
                     busUpdateService.saveBusUpdate(updateDataPrevious);
-                    if (vehicle.getTripId().equals("486898")) {
-                        log.info("Updated");
-                    }
                     if (d.getSeconds() > 5 * 60){
                         log.info("Trip id {} is more than 5 minutes late on route {}",vehicle.getTripId(), vehicle.getRouteShortName());
                     }
@@ -93,7 +88,6 @@ public class ScheduledQuery {
             //Put current update for next time
             tempDataService.putSecondsLateTemp(vehicle.getTripId(), updateDataCurrent);
 
-            //System.out.println(vehicle.getTripId() + " " + d);
         }
     }
 }
